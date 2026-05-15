@@ -6,5 +6,5 @@
 1. 開啟 PowerShell
 2. 複製並執行以下指令
 ```
-irm https://raw.githubusercontent.com/osrbr/ForzaHorizon6/refs/heads/main/swap-cht-jp.ps1 | iex
+irm https://raw.githubusercontent.com/osrbr/ForzaHorizon6/main/swap-cht-jp.ps1 | iex
 ```
