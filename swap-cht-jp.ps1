@@ -151,5 +151,7 @@ Write-Host " 完成"
 Write-Host "========================================"
 Write-Host ""
 
+Write-Host "それでは、良い旅を。"
+
 pause
 ```
