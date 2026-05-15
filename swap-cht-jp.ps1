@@ -7,112 +7,114 @@ $ErrorActionPreference = "Stop"
 
 Write-Host ""
 Write-Host "========================================"
-Write-Host " FH6 語言交換工具"
+Write-Host " Forza Horizon 6 語言交換腳本"
 Write-Host "========================================"
 Write-Host ""
 
 # -----------------------------
-# 1. 取得目前腳本所在位置
+# 1. 嘗試用腳本所在資料夾
 # -----------------------------
 
-$CurrentPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-Write-Host "[*] 目前路徑："
-Write-Host "    $CurrentPath"
-Write-Host ""
+$ScriptRoot = if ($PSScriptRoot) {
+    $PSScriptRoot
+} else {
+    Split-Path -Parent $PSCommandPath
+}
 
 $GameRoot = $null
 
-# -----------------------------
-# 優先檢查目前路徑
-# -----------------------------
+Write-Host "[*] 檢查腳本資料夾..."
 
-$LocalStringTable = Join-Path `
-    $CurrentPath `
-    "media\Stripped\StringTables"
-
-if (Test-Path $LocalStringTable) {
-
-    Write-Host "[+] 偵測到目前資料夾為 FH6 遊戲目錄"
-
-    $GameRoot = $CurrentPath
+if ($ScriptRoot -and (Test-Path "$ScriptRoot\media")) {
+    $GameRoot = $ScriptRoot
+    Write-Host "[+] 使用腳本所在資料夾作為遊戲路徑"
 }
-else {
 
-    Write-Host "[*] 目前資料夾不是 FH6"
-    Write-Host "[*] 正在搜尋 Steam 安裝位置..."
-    Write-Host ""
+# -----------------------------
+# 2. Steam 搜尋 fallback
+# -----------------------------
 
-    # -----------------------------
-    # 尋找 Steam 安裝路徑
-    # -----------------------------
+if (-not $GameRoot) {
+
+    Write-Host "[*] 嘗試從 Steam 搜尋遊戲..."
 
     $SteamPath = "${env:ProgramFiles(x86)}\Steam"
     $LibraryVdf = Join-Path $SteamPath "steamapps\libraryfolders.vdf"
 
-    if (!(Test-Path $LibraryVdf)) {
-        throw "找不到 Steam 遊戲庫資訊。"
-    }
+    if (Test-Path $LibraryVdf) {
 
-    $VdfContent = Get-Content $LibraryVdf -Raw
+        $VdfContent = Get-Content $LibraryVdf -Raw
 
-    $Libraries = [regex]::Matches(
-        $VdfContent,
-        '"path"\s+"([^"]+)"'
-    ) | ForEach-Object {
-        $_.Groups[1].Value.Replace("\\", "\")
-    }
+        $Libraries = [regex]::Matches(
+            $VdfContent,
+            '"path"\s+"([^"]+)"'
+        ) | ForEach-Object {
+            $_.Groups[1].Value.Replace("\\", "\")
+        }
 
-    $Libraries += $SteamPath
+        $Libraries += $SteamPath
 
-    foreach ($Lib in $Libraries) {
+        foreach ($Lib in $Libraries) {
 
-        $PossiblePath = Join-Path `
-            $Lib `
-            "steamapps\common\ForzaHorizon6"
+            $Common = Join-Path $Lib "steamapps\common"
 
-        if (Test-Path $PossiblePath) {
+            if (Test-Path $Common) {
 
-            $GameRoot = $PossiblePath
+                $Hit = Get-ChildItem $Common -Directory -ErrorAction SilentlyContinue |
+                    Where-Object {
+                        $_.Name -match "Forza"
+                    } |
+                    Select-Object -First 1
 
-            Write-Host "[+] 已找到 FH6"
-
-            break
+                if ($Hit) {
+                    $GameRoot = $Hit.FullName
+                    break
+                }
+            }
         }
     }
 }
 
-if (!$GameRoot) {
-    throw "找不到 Forza Horizon 6。"
+# -----------------------------
+# 3. 最終檢查
+# -----------------------------
+
+if (-not $GameRoot) {
+    Write-Host ""
+    Write-Host "找不到 Forza 遊戲資料夾"
+    Write-Host "請確認："
+    Write-Host "- 是否已安裝遊戲"
+    Write-Host "- 是否在 Steam / 正確磁碟"
+    Write-Host ""
+    pause
+    exit
 }
 
 Write-Host ""
 Write-Host "[+] 遊戲路徑："
 Write-Host "    $GameRoot"
 Write-Host ""
-```
-
 
 # -----------------------------
-# 2. 進入 StringTables
+# 4. 進入 StringTables
 # -----------------------------
 
-$StringTablePath = Join-Path `
-    $GameRoot `
-    "media\Stripped\StringTables"
+$TargetPath = Join-Path $GameRoot "media\Stripped\StringTables"
 
-if (!(Test-Path $StringTablePath)) {
-    throw "找不到 StringTables 資料夾：`n$StringTablePath"
+if (-not (Test-Path $TargetPath)) {
+    Write-Host "找不到 StringTables："
+    Write-Host $TargetPath
+    pause
+    exit
 }
 
-Set-Location $StringTablePath
+Set-Location $TargetPath
 
-Write-Host "[+] 已進入："
-Write-Host "    $StringTablePath"
+Write-Host "[+] 進入 StringTables"
 Write-Host ""
 
 # -----------------------------
-# 檢查檔案
+# 5. 檔案交換邏輯
 # -----------------------------
 
 $CHT = "CHT.zip"
@@ -127,10 +129,6 @@ if (!(Test-Path $JP)) {
     throw "找不到 JP.zip"
 }
 
-# -----------------------------
-# 3. 交換檔名
-# -----------------------------
-
 Write-Host "[*] 正在交換語言檔..."
 
 Rename-Item $CHT $TMP -Force
@@ -139,10 +137,6 @@ Rename-Item $TMP $JP  -Force
 
 Write-Host "[+] 語言交換完成"
 Write-Host ""
-
-# -----------------------------
-# 完成
-# -----------------------------
 
 Write-Host "========================================"
 Write-Host " 完成"
