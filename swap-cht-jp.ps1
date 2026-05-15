@@ -12,20 +12,19 @@ Write-Host "========================================"
 Write-Host ""
 
 # -----------------------------
-# 1. 嘗試用腳本所在資料夾
+# 1. 取得執行路徑 (相容 irm | iex 記憶體執行)
 # -----------------------------
-
 $ScriptRoot = if ($PSScriptRoot) {
     $PSScriptRoot
 } else {
-    Split-Path -Parent $PSCommandPath
+    $PWD.Path # 支援 iex 遠端執行時的當前工作目錄
 }
 
 $GameRoot = $null
 
 Write-Host "[*] 檢查腳本資料夾..."
 
-if ($ScriptRoot -and (Test-Path "$ScriptRoot\media")) {
+if ($ScriptRoot -and (Test-Path (Join-Path $ScriptRoot "media"))) {
     $GameRoot = $ScriptRoot
     Write-Host "[+] 使用腳本所在資料夾作為遊戲路徑"
 }
@@ -33,7 +32,6 @@ if ($ScriptRoot -and (Test-Path "$ScriptRoot\media")) {
 # -----------------------------
 # 2. Steam 搜尋 fallback
 # -----------------------------
-
 if (-not $GameRoot) {
 
     Write-Host "[*] 嘗試從 Steam 搜尋遊戲..."
@@ -78,7 +76,6 @@ if (-not $GameRoot) {
 # -----------------------------
 # 3. 最終檢查
 # -----------------------------
-
 if (-not $GameRoot) {
     Write-Host ""
     Write-Host "找不到 Forza 遊戲資料夾"
@@ -98,7 +95,6 @@ Write-Host ""
 # -----------------------------
 # 4. 進入 StringTables
 # -----------------------------
-
 $TargetPath = Join-Path $GameRoot "media\Stripped\StringTables"
 
 if (-not (Test-Path $TargetPath)) {
@@ -108,18 +104,18 @@ if (-not (Test-Path $TargetPath)) {
     exit
 }
 
+# 先切換目錄
 Set-Location $TargetPath
 
 Write-Host "[+] 進入 StringTables"
 Write-Host ""
 
 # -----------------------------
-# 5. 檔案交換邏輯
+# 5. 檔案交換邏輯 (修正 Rename-Item 覆寫錯誤)
 # -----------------------------
-
 $CHT = "CHT.zip"
 $JP  = "JP.zip"
-$TMP = "CH.zip"
+$TMP = "CH.tmp" # 改用 .tmp 避免與現有檔案衝突
 
 if (!(Test-Path $CHT)) {
     throw "找不到 CHT.zip"
@@ -131,9 +127,15 @@ if (!(Test-Path $JP)) {
 
 Write-Host "[*] 正在交換語言檔..."
 
-Rename-Item $CHT $TMP -Force
-Rename-Item $JP  $CHT -Force
-Rename-Item $TMP $JP  -Force
+# 修正：PowerShell 的 Rename-Item 在目標檔案存在時，即使加 -Force 也會失敗。
+# 安全的交換三步驟：
+Rename-Item -Path $CHT -NewName $TMP -Force
+
+# 將 JP 重新命名為 CHT (此時 CHT 已不存在，可安全改名)
+Rename-Item -Path $JP -NewName $CHT -Force
+
+# 將 TMP 重新命名為 JP (此時 JP 已不存在，可安全改名)
+Rename-Item -Path $TMP -NewName $JP -Force
 
 Write-Host "[+] 語言交換完成"
 Write-Host ""
