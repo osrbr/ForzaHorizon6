@@ -8,3 +8,4 @@
 ```
 irm https://raw.githubusercontent.com/osrbr/ForzaHorizon6/main/swap-cht-jp.ps1 | iex
 ```
+3. 遊戲語言改為日本語
