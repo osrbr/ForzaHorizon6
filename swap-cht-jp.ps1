@@ -142,9 +142,11 @@ Write-Host ""
 
 Write-Host "========================================"
 Write-Host " 完成"
+Write-Host ""
+Write-Host " 日本へ ようこそ"
 Write-Host "========================================"
 Write-Host ""
 
-Write-Host "それでは、良い旅を。"
+
 
 pause
